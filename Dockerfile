@@ -1,33 +1,30 @@
 # Use an official Python runtime as a parent image
 FROM python:3.11-slim
 
+# Environment settings
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
-
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
-ENV NIXPACKS_PATH /opt/venv/bin:$NIXPACKS_PATH
-
-# Set the working directory in the container
+# Workdir inside the container
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies (compiler etc. for some Python packages)
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-    build-essential \
-    && apt-get clean \
+    && apt-get install -y --no-install-recommends build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy the current directory contents into the container at /app
-COPY . /app/
-
-# Create a virtual environment and set it as the Python environment
-RUN python -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
-
-# Install Python dependencies
+# Install Python dependencies first (better Docker cache)
+# Make sure requirements.txt is in the repo root
+COPY requirements.txt .
 RUN pip install --upgrade pip \
     && pip install -r requirements.txt
 
-# Command to run the application
-CMD ["python", "lichess-bot.py"]
+# Copy the rest of the project
+COPY . .
+
+# Make sure our start script is executable
+# (start.sh must be in the repo root)
+RUN chmod +x start.sh
+
+# Start the bot (start.sh will inject LICHESS_TOKEN into config.yml, then run lichess-bot.py)
+CMD ["./start.sh"]
