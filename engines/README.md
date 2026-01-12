@@ -26,7 +26,7 @@ Unlike random bots, this engine **thinks**. It evaluates future positions and ch
 | 🧠 **Evaluation Function** | Simple but smart scoring: material + positional value |
 | 📘 **Opening Book** | Loads opening moves from `openings.csv` |
 | 💾 **Transposition Table** | Caches previously seen board positions |
-| 💥 **Quiescence Search** | Extends search in “noisy” situations (captures/checks) |
+| 💥 **Quiescence Search** | Extends search in "noisy" situations (captures/checks) |
 
 ---
 
@@ -47,13 +47,13 @@ lichess-bot/
 │
 ├── homemade.py            # Connects lichess bot to engine (glue code)
 └── lichess-bot.py         # Starts the bot & connects to Lichess
-
+```
 
 ---
 
 ## 🧩 How the Engine Works 
 
-When it is the bot’s turn, it does this:
+When it is the bot's turn, it does this:
 
 ### 1) Opening Book (first moves)
 
@@ -96,13 +96,13 @@ If time ends, it still has a good move from the last completed depth.
 
 Chess is a two-player game:
 - On your turn, you want the best score  
-- On the opponent’s turn, they want the worst score for you
+- On the opponent's turn, they want the worst score for you
 
 That is exactly the **Minimax** idea.
 
 This engine uses **Negamax**, which is the same logic but written in a simpler way:
-- Always “maximize”
-- Use a sign change to represent the opponent’s point of view
+- Always "maximize"
+- Use a sign change to represent the opponent's point of view
 
 **Alpha–Beta pruning** speeds things up:
 
@@ -127,7 +127,7 @@ A **higher score means better for the bot**.
 
 ---
 
-## 🔎 Example “Thinking Flow” (one move)
+## 🔎 Example "Thinking Flow" (one move)
 
 1. Lichess sends the current position (moves played so far)  
 2. Engine checks the opening book  
