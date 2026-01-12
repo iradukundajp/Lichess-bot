@@ -1,3 +1,7 @@
+"""
+Lichess-bot integration.
+Connects our engine to the lichess-bot framework.
+"""
 
 import logging
 import random
@@ -13,17 +17,24 @@ logger = logging.getLogger(__name__)
 
 
 def _as_seconds(x):
+    """Safely convert to float."""
     return float(x) if isinstance(x, (int, float)) else 0.0
 
 
 def _compute_time_budget(board, time_limit):
-#Calculate time to spend on this move."""
-    # Per-move time limit
+    """Figure out how long we can think.
+    
+    We want to use time wisely:
+    - Don't use too much early and flag later
+    - Use increment wisely
+    - Think longer in complex positions
+    """
+    # fixed time per move (like bullet arenas)
     per_move = getattr(time_limit, "time", None)
     if isinstance(per_move, (int, float)) and per_move > 0:
         return min(float(per_move) * 0.95, 20.0)
     
-    # Get clock info
+    # get our clock time and increment
     if board.turn == chess.WHITE:
         clock = _as_seconds(getattr(time_limit, "white_clock", 0))
         inc = _as_seconds(getattr(time_limit, "white_inc", 0))
@@ -34,65 +45,62 @@ def _compute_time_budget(board, time_limit):
     if clock <= 0:
         return 5.0
     
-    # Estimate moves remaining
+    # estimate how many moves left in the game
     pieces = len(board.piece_map())
     if pieces <= 10:
-        expected_moves = 15
+        moves_left = 15  # endgame
     elif pieces <= 16:
-        expected_moves = 25
+        moves_left = 25
     elif pieces <= 24:
-        expected_moves = 35
+        moves_left = 35
     else:
-        expected_moves = 40
+        moves_left = 40
     
-    # Base time allocation
-    budget = clock / expected_moves + inc * 0.9
+    # base time: divide clock by moves left, plus most of increment
+    budget = clock / moves_left + inc * 0.85
     
-    # Limits
-    max_budget = clock * 0.15  # Never use more than 15%
-    budget = min(budget, max_budget, 20.0)
+    # never use more than 12% of our clock
+    budget = min(budget, clock * 0.12, 20.0)
     
-    # Emergency handling
-    if clock < 5:
-        budget = min(budget, 0.5 + inc * 0.5)
-    elif clock < 15:
-        budget = min(budget, 1.5 + inc * 0.7)
+    # emergency: if clock is low, play fast
+    if clock < 3:
+        budget = min(0.3 + inc * 0.5, budget)
+    elif clock < 10:
+        budget = min(1.0 + inc * 0.6, budget)
     elif clock < 30:
-        budget = min(budget, 3.0 + inc * 0.8)
+        budget = min(2.5 + inc * 0.7, budget)
     
-    return max(0.5, budget)
+    return max(0.3, budget)
 
 
 def _compute_depth(board, budget):
-    #Map time budget to search depth.
+    """Set search depth based on time and position."""
     pieces = len(board.piece_map())
     moves = len(list(board.legal_moves))
     
-    # Base depth from time
+    # base depth from time
     if budget < 0.5:
-        depth = 5
-    elif budget < 1.0:
         depth = 6
-    elif budget < 2.0:
+    elif budget < 1.0:
         depth = 7
-    elif budget < 4.0:
+    elif budget < 2.0:
         depth = 8
-    elif budget < 8.0:
+    elif budget < 4.0:
         depth = 9
-    else:
+    elif budget < 8.0:
         depth = 10
+    else:
+        depth = 11
     
-    # Endgame bonus
+    # endgame: search deeper
     if pieces <= 8:
         depth += 4
     elif pieces <= 12:
         depth += 3
     elif pieces <= 16:
         depth += 2
-    elif pieces <= 20:
-        depth += 1
     
-    # Low branching factor bonus
+    # few legal moves: can search deeper
     if moves < 6:
         depth += 3
     elif moves < 10:
@@ -100,19 +108,17 @@ def _compute_depth(board, budget):
     elif moves < 15:
         depth += 1
     
-    # In check: search deeper
-    if board.is_check():
-        depth += 1
-    
     return min(depth, 20)
 
 
 class ExampleEngine(MinimalEngine):
+    """Base class for engines."""
     pass
 
 
 class PyBot(ExampleEngine):
-
+    """Our chess bot."""
+    
     def search(
         self,
         board: chess.Board,
@@ -121,41 +127,42 @@ class PyBot(ExampleEngine):
         draw_offered: bool,
         root_moves: MOVE,
     ) -> PlayResult:
-        #Main search function.
+        """Find the best move."""
         budget = _compute_time_budget(board, time_limit)
         depth = _compute_depth(board, budget)
         
-        logger.info(f"[PyBot] Budget={budget:.2f}s Depth={depth}")
+        logger.info(f"[bot] budget={budget:.2f}s depth={depth}")
         
-        # Get allowed moves
+        # get allowed moves
         if isinstance(root_moves, list) and root_moves:
             allowed = root_moves
         else:
             allowed = list(board.legal_moves)
         allowed_set = set(allowed)
         
-        # Search
+        # search for best move
         try:
             move = get_move(board, depth, time_budget=budget)
             if isinstance(move, str):
                 move = chess.Move.from_uci(move)
         except Exception as e:
-            logger.exception(f"[PyBot] Error: {e}")
+            logger.exception(f"[bot] error: {e}")
             move = None
         
-        # Validate move
+        # make sure move is valid
         if move is None or move not in board.legal_moves:
             move = random.choice(allowed) if allowed else random.choice(list(board.legal_moves))
-            logger.warning(f"[PyBot] Fallback: {move.uci()}")
+            logger.warning(f"[bot] fallback: {move.uci()}")
         elif allowed_set and move not in allowed_set:
             move = random.choice(allowed)
-            logger.warning(f"[PyBot] Restricted fallback: {move.uci()}")
+            logger.warning(f"[bot] restricted: {move.uci()}")
         
+        logger.info(f"[bot] playing: {move.uci()}")
         return PlayResult(move, None)
 
 
 class RandomMove(ExampleEngine):
-    #Random move engine for testing.
-
+    """Random move engine for testing."""
+    
     def search(self, board: chess.Board, *args) -> PlayResult:
         return PlayResult(random.choice(list(board.legal_moves)), None)

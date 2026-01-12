@@ -1,29 +1,34 @@
 """
-CHAMPION CHESS BOT ENGINE
-=============================================
-An AI-powered chess engine combining ALL algorithms from AI course.
+Chess Bot Engine
+================
+A chess engine using minimax search with alpha-beta pruning.
 
-COURSE ALGORITHMS IMPLEMENTED:
-- Lesson 1: Randomness (opening variety, genetic mutations)
-- Lesson 3: Decision Trees (play style selection, game phase detection)
-- Lesson 4: Minimax with Alpha-Beta Pruning (core search)
-- Lesson 5: KNN (opening book similarity matching)
-- Lesson 9: Neural Networks (weighted evaluation function)
-- Lesson 11: Genetic Algorithms (weight optimization concept)
+Algorithm (Course Lesson 4):
+    Minimax finds the best move by searching the game tree.
+    Alpha-beta pruning skips branches that can't affect the result.
+    We use the negamax variant which simplifies the code.
 
-ADVANCED TECHNIQUES ADDED:
-- Late Move Reductions (LMR) - Search unpromising moves less deeply
-- Null Move Pruning - Detect winning positions faster
-- Killer Moves - Remember moves that caused cutoffs (KNN-inspired)
-- History Heuristic - Learn from experience (Neural Network concept)
-- Aspiration Windows - Narrow search window for efficiency
-- Principal Variation Search (PVS) - Optimal alpha-beta variant
-- Game Phase Detection - Different evaluation for opening/middle/endgame
+Evaluation:
+    Material counting (pawns=100, knights=320, etc.)
+    Piece-square tables tell pieces where to go
+    Bonuses for things like bishop pairs, open files, passed pawns
 
+Search enhancements:
+    - Iterative deepening: search depth 1, then 2, then 3...
+    - Transposition table: don't re-search positions we've seen
+    - Null move pruning: if skipping our turn still wins, prune
+    - Late move reductions: search "boring" moves less deeply
+    - Killer/history heuristics: remember good moves
+    - Quiescence search: don't stop mid-capture
+
+Opening book:
+    CSV file with 3000+ positions from known openings
+    Cached in memory on first use
 """
 
-from .main import get_move
-from .evaluation import get_evaluation
-from .minimax import minimax, clear_tt, get_search_stats
+from .main import get_move, get_evaluation
+from .minimax import negamax, clear_tt, get_search_stats
 
-__all__ = ['get_move', 'get_evaluation', 'minimax', 'clear_tt', 'get_search_stats']
+__all__ = ['get_move', 'get_evaluation', 'negamax', 'clear_tt', 'get_search_stats']
+
+__version__ = '2.0.0'
